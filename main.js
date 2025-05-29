@@ -1,4 +1,3 @@
-// main.js — базовая логика портретов, чата и сброса всего
 const portraits = [];
 let progress = {};
 let identifiedPortrait = null;
@@ -9,6 +8,24 @@ window.PortraitModules = [];
 window.registerPortrait = function(portrait) {
   portraits.push(portrait);
 };
+
+async function askAI(prompt) {
+  const response = await fetch('https://openai-vercel-backend.vercel.app/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt })
+  });
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content?.trim() || "Ответа нет.";
+}
+
+function safeReply(txt) {
+  const badWords = ['убить', 'самоуб', 'оружие'];
+  for (const w of badWords)
+    if (txt.toLowerCase().includes(w))
+      return "Извините, этот ответ скрыт по причине безопасности.";
+  return txt;
+}
 
 function saveProgress() {
   localStorage.setItem("portraitProgress", JSON.stringify(progress));
@@ -70,15 +87,25 @@ function analyzeInputBehaviour(txt, eventType="message") {
   }
   updatePortraitIndicator();
 }
-document.getElementById('send-btn').onclick = () => {
+
+document.getElementById('send-btn').onclick = async () => {
   let val = document.getElementById('chat-input').value.trim();
-  if(!val) return;
+  if (!val) return;
   addMsgUser(val);
   analyzeInputBehaviour(val, "message");
-  setTimeout(()=>{ addMsgAI("Я записал твой ответ! (ИИ-ответ здесь позже)"); }, 600);
-  document.getElementById('chat-input').value='';
+  document.getElementById('chat-input').value = '';
+
+  addMsgAI("Думаю...");
+  try {
+    let aiReply = await askAI(val);
+    document.querySelector('.msg.ai:last-child').textContent = safeReply(aiReply);
+  } catch (e) {
+    document.querySelector('.msg.ai:last-child').textContent = "Ошибка связи с ИИ.";
+  }
 };
+
 document.getElementById('resetBtn').onclick = resetAll;
+
 window.registerGame = function(title, script, icon=null) {
   let btn = document.createElement('button');
   btn.className = "game-btn";
@@ -86,7 +113,7 @@ window.registerGame = function(title, script, icon=null) {
   btn.onclick = ()=> {
     currentGame = script;
     document.getElementById('chatBox').style.display="block";
-    window[script].startGame(); // вызов функции игры
+    window[script].startGame();
     analyzeInputBehaviour(title, "gameSelect");
   };
   document.getElementById('gamesList').appendChild(btn);
