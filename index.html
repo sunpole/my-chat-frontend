@@ -2,134 +2,30 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Семейный помощник-игра ИИ</title>
-  <style>
-    body { font-family: Arial,sans-serif; margin: 0; background:#f9f9fb;}
-    .navbar { display: flex; justify-content: space-between; align-items: center; padding: 10px;background:#98b9ed;}
-    .portrait-indicator { font-size: 18px; }
-    .reset-btn { border: none; background: #e36a6a; color: white; padding: 8px 18px; cursor: pointer; border-radius: 6px;}
-    .dashboard { margin: 25px auto; max-width: 600px;}
-    .games-list { display: flex; gap: 15px;}
-    .game-btn { border: none; background: #84d18c; color: white; padding: 15px 30px; border-radius: 8px; font-size: 16px; cursor: pointer;}
-    .chat { margin: 30px auto; max-width: 600px; background: #fff; padding: 20px; border-radius: 8px; min-height: 350px;}
-    .messages { min-height: 150px; margin-bottom: 18px;}
-    .msg { padding: 7px; border-radius: 6px; margin-bottom: 5px;}
-    .msg.user { background: #dcefff;}
-    .msg.ai { background: #e2edd4;}
-    .chat-input-row { display: flex;}
-    #chat-input { flex: 1; padding: 8px;}
-    #send-btn { padding: 8px 20px;}
-  </style>
+  <title>Семейный дашборд игр</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="navbar">
+  <header>
     <div class="portrait-indicator" id="portraitIndicator">Определение: 0%</div>
     <button class="reset-btn" id="resetBtn">Сбросить всё</button>
-  </div>
-  <div class="dashboard">
-    <h2>Выберите игру</h2>
-    <div class="games-list">
-      <button class="game-btn" data-game="skazka">Послушать сказку</button>
-      <button class="game-btn" data-game="ugadai">Угадай героя</button>
-      <!-- Здесь появятся новые игры -->
-    </div>
-  </div>
-  <div class="chat" id="chatBox" style="display:none">
-    <div class="messages" id="messages"></div>
-    <div class="chat-input-row">
-      <input type="text" id="chat-input" placeholder="Введите сообщение...">
-      <button id="send-btn">Отправить</button>
-    </div>
-  </div>
-  <script>
-    // ----- Простая модель портретов -----
-    const portraits = [
-      { name: "Младший ребенок", sample: ["сказка","играрь","котик","играть"], baseChance: 0 },
-      { name: "Старший ребенок", sample: ["герой","викторина","школа","задание"], baseChance: 0 }
-    ];
-    let progress = {};
-    let identifiedPortrait = null;
-    // ------ Сохранение состояния -----
-    function saveProgress() { localStorage.setItem("portraitProgress",JSON.stringify(progress)); }
-    function loadProgress() {
-      progress = JSON.parse(localStorage.getItem("portraitProgress") || "{}");
-      identifiedPortrait = localStorage.getItem("identifiedPortrait");
-      updatePortraitIndicator();
-    }
-    function resetAll() {
-      localStorage.clear();
-      progress = {}; identifiedPortrait = null;
-      updatePortraitIndicator();
-      document.getElementById('messages').innerHTML = '';
-    }
-    // -------- Обновление прогресс-бара портрета -------
-    function updatePortraitIndicator() {
-      let txt = "Определение: 0%";
-      if(identifiedPortrait) txt = `Это: ${identifiedPortrait}`;
-      else if(Object.keys(progress).length){
-        let maxVal=0, maxName="";
-        for(let key of Object.keys(progress)) if(progress[key]>maxVal) {maxVal=progress[key]; maxName=key;}
-        if(maxVal>0) txt = `Вероятно: ${maxName}: ${maxVal}%`;
-      }
-      document.getElementById('portraitIndicator').textContent = txt;
-    }
-    // ------- Логика поведения (очень упрощённо) -----
-    function analyzeInput(txt) {
-      txt = txt.toLowerCase();
-      portraits.forEach(p=>{
-        if(!progress[p.name]) progress[p.name]=p.baseChance || 0;
-        p.sample.forEach(term=>{
-          if(txt.includes(term)) progress[p.name] += 20;
-        });
-        if(progress[p.name]>100) progress[p.name]=100;
-      });
-      saveProgress();
-      // Определяем порог и спрашиваем у пользователя
-      Object.keys(progress).forEach(name=>{
-        let val = progress[name];
-        if([25,50,75,100].includes(val) && !identifiedPortrait) {
-          setTimeout(()=>{
-            addMsgAI(`Ты сейчас ${name}? (да/нет)`);
-          },350);
-        }
-        if(progress[name]>=100 && !identifiedPortrait){
-          identifiedPortrait=name;
-          localStorage.setItem('identifiedPortrait',name);
-        }
-      });
-      updatePortraitIndicator();
-    }
-    // ------- Пример работы чата и игры -----
-    function addMsgUser(txt) {
-      let div = document.createElement('div'); div.className="msg user"; div.textContent=txt;
-      document.getElementById('messages').appendChild(div);
-    }
-    function addMsgAI(txt) {
-      let div = document.createElement('div'); div.className="msg ai"; div.textContent=txt;
-      document.getElementById('messages').appendChild(div);
-    }
-    // ------ Обработка ввода -----
-    document.getElementById('send-btn').onclick = () => {
-      let val = document.getElementById('chat-input').value.trim();
-      if(!val) return;
-      addMsgUser(val);
-      analyzeInput(val);
-      // Без подключения к ИИ просто отвечаем шаблонной репликой:
-      setTimeout(()=>{ addMsgAI("Я запомнил твой ответ!"); }, 555);
-      document.getElementById('chat-input').value='';
-    }
-    // -------- Сброс ------
-    document.getElementById('resetBtn').onclick = resetAll;
-    // ------ Пример переключения на чат после выбора игры ----
-    document.querySelectorAll('.game-btn').forEach(btn=>{
-      btn.onclick = ()=>{
-        document.getElementById('chatBox').style.display="block";
-        addMsgAI(`Ты выбрал(а) игру: "${btn.textContent}"! Спрашивай или играй :)`);
-        analyzeInput(btn.textContent);
-      }
-    });
-    // Первичная инициализация
-    loadProgress();
-  </script>
+  </header>
+  <main>
+    <section id="gamesBar">
+      <h2>Выберите игру</h2>
+      <div class="games-list" id="gamesList">
+        <!-- Кнопки игр будут добавлены через скрипты -->
+      </div>
+    </section>
+    <section class="chat" id="chatBox" style="display:none">
+      <div class="messages" id="messages"></div>
+      <div class="chat-input-row">
+        <input type="text" id="chat-input" placeholder="Введите сообщение...">
+        <button id="send-btn">Отправить</button>
+      </div>
+    </section>
+  </main>
+  <!-- главный скрипт (работа портретов, чата, сброса), далее динамически добавляются скрипты игр и профилей -->
+  <script src="main.js"></script>
 </body>
 </html>
